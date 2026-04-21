@@ -1,7 +1,6 @@
 #include "CanBooster.h"
 #include "pins.h"
 #include "config.h"
-test
 
 void CanBooster_begin() {
     ACAN_ESP32_Settings settings(CAN_BOOSTER_BITRATE);
