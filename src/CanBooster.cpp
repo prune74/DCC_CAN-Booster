@@ -15,38 +15,39 @@ void CanBooster_begin() {
     }
 }
 
-void CanBooster_sendDcc(const DccEvent &ev) {
+bool CanBooster_sendDccBit(uint8_t bit, uint8_t phase) {
     CANMessage msg;
+    msg.id  = 0x100;
+    msg.len = 2;
+    msg.data[0] = bit;
+    msg.data[1] = phase;
+    return ACAN_ESP32::can.tryToSend(msg);
+}
 
-    switch (ev.type) {
-        case DCC_BIT_0:
-            msg.id = 0x100;
-            msg.len = 2;
-            msg.data[0] = 0;
-            msg.data[1] = ev.phase;
-            break;
+bool CanBooster_sendCutout(bool local, bool global) {
+    CANMessage msg;
+    msg.id  = 0x101;
+    msg.len = 2;
+    msg.data[0] = local  ? 1 : 0;
+    msg.data[1] = global ? 1 : 0;
+    return ACAN_ESP32::can.tryToSend(msg);
+}
 
-        case DCC_BIT_1:
-            msg.id = 0x100;
-            msg.len = 2;
-            msg.data[0] = 1;
-            msg.data[1] = ev.phase;
-            break;
+bool CanBooster_sendTelemetry(uint16_t mA, uint16_t mV, BoosterState st) {
+    CANMessage msg;
+    msg.id  = 0x102;
+    msg.len = 3;
+    msg.data[0] = (uint8_t)(mA / 10);    // x10 mA
+    msg.data[1] = (uint8_t)(mV / 100);   // x100 mV
+    msg.data[2] = (uint8_t)st;
+    return ACAN_ESP32::can.tryToSend(msg);
+}
 
-        case DCC_CUTOUT_START:
-            msg.id = 0x101;
-            msg.len = 2;
-            msg.data[0] = 1;
-            msg.data[1] = 1;
-            break;
-
-        case DCC_CUTOUT_END:
-            msg.id = 0x101;
-            msg.len = 2;
-            msg.data[0] = 0;
-            msg.data[1] = 0;
-            break;
-    }
-
-    ACAN_ESP32::can.tryToSend(msg);
+bool CanBooster_sendRailcomAddress(uint16_t addr) {
+    CANMessage msg;
+    msg.id  = 0x103;
+    msg.len = 2;
+    msg.data[0] = (uint8_t)(addr & 0xFF);
+    msg.data[1] = (uint8_t)(addr >> 8);
+    return ACAN_ESP32::can.tryToSend(msg);
 }

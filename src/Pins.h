@@ -8,5 +8,5 @@ static const gpio_num_t PIN_DCC_IN = GPIO_NUM_27;
 static const gpio_num_t PIN_CAN_TX = GPIO_NUM_5;
 static const gpio_num_t PIN_CAN_RX = GPIO_NUM_4;
 
-// LED debug (optionnel)
+// LED debug
 static const gpio_num_t PIN_LED = GPIO_NUM_2;
