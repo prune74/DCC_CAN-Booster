@@ -4,22 +4,25 @@
 // -----------------------------------------------------------------------------
 // Empaquetage des bits DCC
 // -----------------------------------------------------------------------------
-// Chaque trame 0x100 transporte jusqu'à DCCB_BITS_PER_BLOCK bits :
-//   data[0]     = N (nombre de bits emballés)
-//   data[1..8]  = bits, 4 par octet, chaque nibble = (bit << 1) | phase
+// Chaque trame 0x100 transporte jusqu'à DCCB_BITS_PER_BLOCK bits (16 max) :
+//   data[0]    = N (nombre de bits réellement emballés, 1..16)
+//   data[1..8] = bits, 4 par octet, chaque nibble = (bit << 1) | phase
+//   DLC        = 1 + ceil(N / 2)
+//
+// CORRECTION : data[0] contient bien N (avant : s_blockN * 4, faux d'un
+// facteur 4) et le bloc est limité à 16 nibbles = 8 octets de données
+// (avant : le test de débordement autorisait un débordement de s_block[9]).
 //
 // Le bloc part quand il est plein, sur cutout, ou après un idle
 // (DCCB_BLOCK_FLUSH_TIMEOUT_US) pour ne pas ajouter de latence en fin de trame.
 // -----------------------------------------------------------------------------
-static uint8_t  s_blockBits  = 0;              // bits déjà emballés
-static uint8_t  s_blockN     = 0;              // nombre de nibbles remplis (0..8)
-
-static uint8_t s_block[9];                    // 1 compteur + 8 octets de bits
+static uint8_t s_blockN = 0;        // nibbles remplis (1 nibble = 1 bit, 0..16)
+static uint8_t s_block[9];          // 1 octet compteur + 8 octets de bits
 
 bool CanBooster_flushDccBits() {
     if (s_blockN == 0) return true;           // rien à envoyer
 
-    s_block[0] = s_blockN * 4;                // nombre de bits emballés
+    s_block[0] = s_blockN;                    // N bits réellement emballés
 
     // DLC : 1 octet compteur + ceil(nibbles / 2) octets
     uint8_t dlc = 1 + ((s_blockN + 1) / 2);
@@ -47,7 +50,8 @@ bool CanBooster_packDccBit(uint8_t bit, uint8_t phase) {
     }
     s_blockN++;
 
-    if (s_blockN * 4 >= DCCB_BITS_PER_BLOCK) {
+    // 16 nibbles = 8 octets de données : capacité maximale de la trame
+    if (s_blockN >= DCCB_BITS_PER_BLOCK) {
         return CanBooster_flushDccBits();              // bloc plein → envoi
     }
     return true;
@@ -62,7 +66,7 @@ bool CanBooster_sendDccBit(uint8_t bit, uint8_t phase) {
 }
 
 // -----------------------------------------------------------------------------
-// Envoi du cutout
+// Envoi du cutout (cutout RÉEL uniquement — jamais en failsafe)
 // -----------------------------------------------------------------------------
 bool CanBooster_sendCutout(bool local, bool global) {
     // Ne jamais laisser un bloc de bits en attente derrière un cutout
@@ -83,7 +87,7 @@ bool CanBooster_sendTelemetry(uint16_t mA, uint16_t mV, BoosterState st) {
 }
 
 // -----------------------------------------------------------------------------
-// Envoi de l'adresse RailCom
+// Envoi de l'adresse RailCom (réservé — RailCom non distribué)
 // -----------------------------------------------------------------------------
 bool CanBooster_sendRailcomAddress(uint16_t addr) {
     CanMsg msg((uint16_t)DCCB_CAN_ID_RAILCOM,
@@ -91,7 +95,4 @@ bool CanBooster_sendRailcomAddress(uint16_t addr) {
     return CanBus::bus(0).send(msg);
 }
 
-// -----------------------------------------------------------------------------
-// 
-// -----------------------------------------------------------------------------
 bool CanBooster_hasPendingBits() { return s_blockN > 0; }

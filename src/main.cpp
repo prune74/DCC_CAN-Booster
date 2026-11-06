@@ -18,6 +18,10 @@ BoosterCanConfig boosterCanConfig;
 // ---------------------------------------------------------------------------
 // Tâche CAN (core 1) : événements DCC → bus CAN + failsafe + télémétrie
 // ---------------------------------------------------------------------------
+// Depuis la refonte du décodeur, un événement = UN BIT COMPLET (paire de
+// demi-bits) ou un cutout (START+END consécutifs). Le débit d'événements
+// est donc ≤ ~17 000 bits/s, très confortable pour la queue (64 entrées).
+// ---------------------------------------------------------------------------
 void taskCan(void *pvParameters) {
     DccEvent ev;
     uint32_t lastDccMs   = millis();
@@ -82,12 +86,15 @@ void taskCan(void *pvParameters) {
         // -------------------------------------------------------------------
         // 3) Failsafe : perte du signal DCC
         // -------------------------------------------------------------------
+        // CORRECTION : plus de trame cutout ici — l'ID 0x101 est réservé au
+        // cutout réel du signal. L'état "rails coupés" est porté par la
+        // télémétrie (BOOSTER_OFF), sans ambiguïté pour le booster aval.
+        // -------------------------------------------------------------------
         uint32_t now = millis();
 
         if (!failsafeActive && (now - lastDccMs > DCCB_FAILSAFE_TIMEOUT_MS)) {
             failsafeActive = true;
-            CanBooster_flushDccBits();
-            CanBooster_sendCutout(true, true);
+            CanBooster_flushDccBits();                    // ne rien perdre
             CanBooster_sendTelemetry(0, 0, BOOSTER_OFF);
         }
 
@@ -162,8 +169,9 @@ void setup() {
 
     Cli_begin();
 
-    // Note : plus de tâche DCC vide sur le core 0 — le décodage se fait
-    // en interruption, la consolidation dans taskCan (core 1).
+    // Le décodage se fait en interruption, la consolidation dans
+    // taskCan (core 1). Le WiFi/BT restent désactivés (jamais initialisés)
+    // pour ne pas ajouter de gigue sur les interruptions GPIO.
     xTaskCreatePinnedToCore(taskCan,   "CAN",    4096, nullptr, 3, &taskCanHandle,   1);
     xTaskCreatePinnedToCore(taskCanRx, "CAN_RX", 4096, nullptr, 1, &taskCanRxHandle, 1);
 }
