@@ -18,8 +18,8 @@ Basé sur la bibliothèque [prune74/CanUniversal](https://github.com/prune74/Can
 
 ```
 LaBox (CommandStation-EX)                ESP32                       Bus CAN
-┌─────────────────────┐   EXT1/EXT2   ┌──────────────────────────┐
-│  Sortie booster    │  0–3.3 V  ──►  │ XOR SN74LVC1G86 → GPIO27 │
+┌─────────────────────┐   EXT1/EXT2    ┌──────────────────────────┐
+│  Sortie booster     │  0–3.3 V  ──►  │ XOR SN74LVC1G86 → GPIO27 │
 │  signal DCC + cutout│                │ ISR : demi-bits → bits   │
 └─────────────────────┘                │ taskCan : blocs 0x100    │ ──► 500 kbit/s
                                        │ TWAI : TX=5, RX=4        │      vers boosters aval
